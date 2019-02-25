@@ -163,7 +163,7 @@ class ExtractCentroid:
         icon_path = ':/plugins/ExtractCentroid/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u''),
+            text=self.tr(u'Extract Centroid'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
