@@ -23,7 +23,7 @@
 import os.path
 
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon, QMessageBox,QFileDialog
+from PyQt4.QtGui import QAction, QIcon
 
 # Initialize Qt resources from file resources.py
 # Import the code for the dialog
@@ -180,31 +180,54 @@ class ExtractCentroid:
     def run(self):
         """Run method that performs all the real work"""
 
-        if self.dlg.lineEdit.txt():
-            file_path = self.dlg.lineEdit.txt()
-            layer = self.iface.addVectorLayer(file_path, "sample_data", "ogr")
+        layers = self.iface.legendInterface().layers()
+        layer_list = []
+        for layer in layers:
+            layer_list.append(layer.name())
 
-            if not layer:
-                QMessageBox.critical(self, "File not found", "File not found")
-
-            iter = layer.getFeatures()
-
-            for feature in iter:
-                # retrieve every feature with its geometry and attributes
-                # fetch geometry
-                geom = feature.geometry()
-                print "Feature ID %d: " % feature.id()
-
+        self.dlg.comboBox.clear()
+        self.dlg.comboBox.addItems(layer_list)
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
 
-    def select_output_file(self):
-        filename = QFileDialog.getSaveFileName(self.dlg, "Select output file ", "", '*.txt')
-        self.dlg.lineEdit.setText(filename)
+        if result:
+            # get output file patth
+            filename = self.dlg.lineEdit.text()
+            output_file = open(filename, 'w')
+
+            # get currently selected layer
+            selectedLayerIndex = self.dlg.comboBox.currentIndex()
+            selectedLayer = layers[selectedLayerIndex]
+
+            # get all layer fields
+            fields = selectedLayer.pendingFields()
+            fieldnames = []
+
+            headings = []
+
+            for f in fields:
+                fieldnames.append(f.name())
+                headings.append(f.name())
+
+            # add X, Y fields
+            headings.append("X")
+            headings.append("Y")
+
+            # write fields name as heading row in csv in first line
+            heading_line = ','.join(str(h) for h in headings) + '\n'
+            output_file.write(heading_line)
+
+            # iterate over the layer features
+            for f in selectedLayer.getFeatures():
+                # calculate centroid
+                centroid = f.geometry().centroid().asPoint()
+
+                # write each line to file
+                line = ','.join(unicode(f[x]) for x in fieldnames) + "," + str(centroid[0]) + "," + str(
+                    centroid[1]) + '\n'
+                unicode_line = line.encode('utf-8')
+                output_file.write(unicode_line)
+            # close file
+            output_file.close()
